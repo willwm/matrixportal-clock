@@ -4,6 +4,16 @@ A CircuitPython project for an Adafruit MatrixPortal M4 and a 64x32 RGB LED matr
 
 The primary program is `code.py`. It gets time over the network and retrieves current weather from the Open-Meteo API. No Open-Meteo API key is required.
 
+## Screenshots
+
+### Temperature View
+
+![Temperature view](docs/images/temperature.png)
+
+### Date View
+
+![Date view](docs/images/date.png)
+
 ## Hardware and Software
 
 - Adafruit MatrixPortal M4 with its ESP32 Wi-Fi co-processor
