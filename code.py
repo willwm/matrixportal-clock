@@ -40,10 +40,15 @@ TIME_COLOR = 0xFFFFFF
 TEMP_COLOR = 0xFF8800
 DATE_COLOR = 0x00AAFF
 
+# Date view style:
+#   "short" -> "WED 30"      (fits beside the weather icon, which stays visible)
+#   "long"  -> "WED SEP 30"  (full width; the icon is hidden while the date shows)
+DATE_STYLE = "short"
+
 # Vertical nudges, in pixels, if text looks 1-2 px too high or low on your panel
 TIME_Y = 0
 TEMP_Y = 16
-DATE_Y = 17        # top of the "WED" line; the "SEP 30" line sits 8 px lower
+DATE_Y = 18
 # -----------------------------------
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
@@ -82,15 +87,11 @@ temp_label = label.Label(
     big_font, text="--", color=TEMP_COLOR,
     anchor_point=(0.5, 0.0), anchored_position=(41, TEMP_Y),
 )
-day_label = label.Label(
-    small_font, text="", color=DATE_COLOR,
-    anchor_point=(0.5, 0.0), anchored_position=(41, DATE_Y),
-)
 date_label = label.Label(
     small_font, text="", color=DATE_COLOR,
-    anchor_point=(0.5, 0.0), anchored_position=(41, DATE_Y + 8),
+    anchor_point=(0.5, 0.0),
+    anchored_position=(41 if DATE_STYLE == "short" else 32, DATE_Y),
 )
-day_label.hidden = True
 date_label.hidden = True
 
 # --- Weather icon (one 16x16 tile shown from the sprite sheet) ---
@@ -104,7 +105,7 @@ icon_grid = displayio.TileGrid(
 )
 icon_grid.hidden = True   # until the first weather fetch succeeds
 
-for item in (time_label, temp_label, day_label, date_label, icon_grid):
+for item in (time_label, temp_label, date_label, icon_grid):
     splash.append(item)
 
 
@@ -125,7 +126,6 @@ def apply_brightness(night):
     factor = DIM_LEVEL if night else 1.0
     time_label.color = scale_color(TIME_COLOR, factor)
     temp_label.color = scale_color(TEMP_COLOR, factor)
-    day_label.color = scale_color(DATE_COLOR, factor)
     date_label.color = scale_color(DATE_COLOR, factor)
     for i, color in enumerate(base_palette):
         icon_palette[i] = scale_color(color, factor)
@@ -173,10 +173,11 @@ def format_time(now, colon_on):
     return f"{hour:02d}{sep}{minute:02d}"
 
 
-def show_date_view(show_date):
-    temp_label.hidden = show_date
-    day_label.hidden = not show_date
-    date_label.hidden = not show_date
+def update_view():
+    """Show either temperature or date in the lower area; manage icon visibility."""
+    temp_label.hidden = showing_date
+    date_label.hidden = not showing_date
+    icon_grid.hidden = not have_weather or (showing_date and DATE_STYLE == "long")
 
 
 failures = 0
@@ -184,6 +185,7 @@ next_time_sync = 0        # monotonic timestamps of the next attempt
 next_weather = 0
 next_rotate = 0
 showing_date = False
+have_weather = False
 night_state = None
 last_time_text = None
 last_date_text = None
@@ -207,7 +209,8 @@ while True:
             temp_text, icon_index = fetch_weather()
             temp_label.text = temp_text
             icon_grid[0] = icon_index
-            icon_grid.hidden = False
+            have_weather = True
+            update_view()
             next_weather = now_mono + WEATHER_INTERVAL
             failures = 0
         except (RuntimeError, ValueError, OSError) as err:
@@ -226,15 +229,17 @@ while True:
         apply_brightness(night)
         night_state = night
 
-    date_text = f"{DAYS[local.tm_wday]} {MONTHS[local.tm_mon - 1]} {local.tm_mday}"
+    if DATE_STYLE == "short":
+        date_text = f"{DAYS[local.tm_wday]} {local.tm_mday}"
+    else:
+        date_text = f"{DAYS[local.tm_wday]} {MONTHS[local.tm_mon - 1]} {local.tm_mday}"
     if date_text != last_date_text:
-        day_label.text = DAYS[local.tm_wday]
-        date_label.text = f"{MONTHS[local.tm_mon - 1]} {local.tm_mday}"
+        date_label.text = date_text
         last_date_text = date_text
 
     if ROTATE_SECONDS and now_mono >= next_rotate:
         showing_date = not showing_date
-        show_date_view(showing_date)
+        update_view()
         next_rotate = now_mono + ROTATE_SECONDS
 
     time_text = format_time(local, int(now_mono) % 2 == 0)

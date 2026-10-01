@@ -14,6 +14,10 @@ The primary program is `code.py`. It gets time over the network and retrieves cu
 
 ![Date view](docs/images/date.png)
 
+### Dimmed (Night) View
+
+![Dimmed view](docs/images/night-dimmed.png)
+
 ## Hardware and Software
 
 - Adafruit MatrixPortal M4 with its ESP32 Wi-Fi co-processor
